@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GSC: Meta ads campaign tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F4F5F7; --surface:#FFFFFF; --ink:#191C24; --muted:#646A78; --rule:#DADDE4;
+    --track:#E6E8EE; --red:#B3122E; --red-soft:#F3D9DE; --ok:#1E7A4A;
+    --font:"Archivo","Helvetica Neue",Arial,system-ui,sans-serif;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#14161B; --surface:#1B1E25; --ink:#ECEDF0; --muted:#9AA0AD; --rule:#2C3039;
+      --track:#2A2E37; --red:#E5495F; --red-soft:#3A1E25; --ok:#5BC48A;
+      color-scheme:dark;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.5;
+    font-variation-settings:"wdth" 100;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px;margin:0 auto;padding:40px 24px 64px}
+
+  /* Masthead */
+  .mast{display:flex;justify-content:space-between;align-items:baseline;gap:8px 24px;flex-wrap:wrap;
+    padding-bottom:14px;border-bottom:2px solid var(--ink)}
+  .mast h1{margin:0;font-size:22px;font-weight:800;font-stretch:80%;font-variation-settings:"wdth" 80;letter-spacing:.005em}
+  .mast p{margin:0;color:var(--muted);font-size:13px}
+  .mast-r{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .refresh{font:inherit;font-size:13.5px;font-weight:600;color:var(--surface);background:var(--ink);border:0;border-radius:6px;
+    padding:7px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+  .refresh:hover{background:var(--red)}
+  .refresh[disabled]{opacity:.6;cursor:progress}
+  .refresh[disabled]::before{content:"";width:10px;height:10px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;
+    animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.refresh[disabled]::before{animation:none}}
+  .status{margin:10px 0 0;font-size:13px;color:var(--muted);min-height:0}
+  .status:empty{display:none}
+  .status.err{color:var(--red)}
+
+  /* Hero: spend against budget, drawn as a ticket stub */
+  .hero{margin-top:36px}
+  .hero-line{display:flex;justify-content:space-between;align-items:flex-end;gap:12px 32px;flex-wrap:wrap}
+  .hero-fig{margin:0;font-weight:800;line-height:.95;font-size:clamp(40px,7.2vw,76px);
+    font-variation-settings:"wdth" 70;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .hero-fig .of{font-weight:400;color:var(--muted);font-variation-settings:"wdth" 70}
+  .hero-pct{margin:0;font-weight:800;font-size:clamp(28px,4.4vw,44px);line-height:1;color:var(--red);
+    font-variation-settings:"wdth" 70;font-variant-numeric:tabular-nums}
+  .hero-pct small{display:block;font-size:13px;font-weight:500;color:var(--muted);font-variation-settings:"wdth" 100;margin-top:6px}
+  .stub{position:relative;height:56px;margin-top:22px;border-radius:6px;background:var(--track);overflow:hidden}
+  .stub-fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--red)}
+  .stub-tear{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed var(--paper);transform:translateX(-1px)}
+  .stub-tear::before,.stub-tear::after{content:"";position:absolute;left:-10px;width:18px;height:18px;border-radius:50%;background:var(--paper)}
+  .stub-tear::before{top:-9px} .stub-tear::after{bottom:-9px}
+  .hero-sub{margin:12px 0 0;color:var(--muted);font-size:14px}
+  .hero-sub b{color:var(--ink);font-weight:600}
+  @media (prefers-reduced-motion:no-preference){
+    .stub-fill{transition:width 900ms cubic-bezier(.2,.7,.2,1)}
+    .stub-tear{transition:left 900ms cubic-bezier(.2,.7,.2,1)}
+  }
+
+  /* Metric strip */
+  .strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));margin-top:36px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+  .metric{padding:18px 18px 16px;border-left:1px solid var(--rule)}
+  .metric:first-child{border-left:0;padding-left:0}
+  .metric h3{margin:0;font-size:13px;font-weight:600;color:var(--muted)}
+  .metric .v{margin-top:6px;font-size:32px;font-weight:800;line-height:1.05;font-variation-settings:"wdth" 75;font-variant-numeric:tabular-nums}
+  .metric .v.none{font-size:18px;font-weight:600;color:var(--muted);font-variation-settings:"wdth" 100;padding-top:8px}
+  .metric p{margin:6px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4}
+  @media (max-width:900px){
+    .strip{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .metric:nth-child(3n+1){border-left:0;padding-left:0}
+    .metric:nth-child(n+4){border-top:1px solid var(--rule)}
+  }
+  @media (max-width:520px){
+    .strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .metric:nth-child(3n+1){border-left:1px solid var(--rule);padding-left:18px}
+    .metric:nth-child(2n+1){border-left:0;padding-left:0}
+    .metric:nth-child(n+3){border-top:1px solid var(--rule)}
+  }
+
+  /* Sections */
+  h2{margin:52px 0 4px;font-size:20px;font-weight:800;font-variation-settings:"wdth" 80}
+  .hint{margin:0 0 18px;color:var(--muted);font-size:13.5px;max-width:72ch}
+
+  /* Budget by campaign */
+  .pace{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+  .pace li{display:grid;grid-template-columns:minmax(0,17rem) minmax(0,1fr) 11rem;gap:6px 20px;align-items:center;
+    padding:14px 0;border-bottom:1px solid var(--rule)}
+  .pace .nm{font-weight:600;min-width:0}
+  .pace .nm span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pace .nm small{display:block;font-weight:400;color:var(--muted);font-size:12.5px}
+  .bar{position:relative;height:12px;border-radius:6px;background:var(--track);overflow:hidden}
+  .bar i{position:absolute;inset:0 auto 0 0;border-radius:6px;background:var(--red)}
+  .bar.paused i{background:var(--muted)}
+  .pace .num{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted);white-space:nowrap}
+  .pace .num b{display:block;color:var(--ink);font-size:18px;font-weight:800;font-variation-settings:"wdth" 75}
+  @media (max-width:700px){
+    .pace li{grid-template-columns:minmax(0,1fr)}
+    .pace .nm span{white-space:normal}
+    .pace .num{text-align:left}
+    .pace .num b{display:inline;font-size:15px;margin-right:6px}
+  }
+
+  /* Table */
+  .tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .tools input[type=search]{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--rule);
+    border-radius:6px;padding:8px 12px;min-width:0;flex:1 1 14rem;max-width:22rem}
+  .tools label{display:flex;gap:6px;align-items:center;font-size:13.5px;color:var(--muted);cursor:pointer}
+  input:focus-visible,button:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+  .scroll{overflow-x:auto;border:1px solid var(--rule);border-radius:8px;background:var(--surface)}
+  table{border-collapse:separate;border-spacing:0;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+  th,td{padding:11px 14px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--rule)}
+  tbody tr:last-child td{border-bottom:0}
+  th{font-size:12.5px;font-weight:600;color:var(--muted);background:var(--surface);vertical-align:bottom}
+  th button{all:unset;cursor:pointer}
+  th[aria-sort=ascending] button::after{content:" ▲";font-size:9px}
+  th[aria-sort=descending] button::after{content:" ▼";font-size:9px}
+  th.l,td.l{text-align:left}
+  th:first-child,td:first-child{position:sticky;left:0;background:var(--surface);z-index:1;max-width:16rem;overflow:hidden;text-overflow:ellipsis;
+    box-shadow:1px 0 0 var(--rule)}
+  td:first-child{font-weight:600}
+  .st-active{color:var(--ok)} .st-other{color:var(--muted)}
+  .dim{color:var(--muted)}
+
+  .notes{margin:40px 0 0;padding:18px 0 0;border-top:1px solid var(--rule);color:var(--muted);font-size:13px;max-width:78ch}
+  .notes p{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <h1>GSC Meta ads campaign tracker</h1>
+    <div class="mast-r">
+      <p id="updated"></p>
+      <button type="button" id="refresh" class="refresh" hidden>Refresh</button>
+    </div>
+  </header>
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+
+  <section class="hero" aria-labelledby="hero-title">
+    <h2 id="hero-title" style="position:absolute;left:-9999px">Amount spent against budget</h2>
+    <div class="hero-line">
+      <p class="hero-fig"><span id="spent"></span> <span class="of">of <span id="budget"></span> spent</span></p>
+      <p class="hero-pct"><span id="pct"></span><small>of total budget</small></p>
+    </div>
+    <div class="stub" role="img" id="stub-label">
+      <div class="stub-fill" id="stub-fill"></div>
+      <div class="stub-tear" id="stub-tear"></div>
+    </div>
+    <p class="hero-sub" id="hero-sub"></p>
+  </section>
+
+  <section class="strip" aria-label="Account totals, all time">
+    <div class="metric"><h3>Impressions</h3><div class="v" id="m-impr"></div><p>Times ads were on screen</p></div>
+    <div class="metric"><h3>Reach</h3><div class="v" id="m-reach"></div><p>Accounts reached, each counted once</p></div>
+    <div class="metric"><h3>Clicks (all)</h3><div class="v" id="m-clicks"></div><p>Clicks, taps and swipes</p></div>
+    <div class="metric"><h3>CTR (all)</h3><div class="v" id="m-ctr"></div><p>Clicks ÷ impressions</p></div>
+    <div class="metric"><h3>ROAS</h3><div class="v" id="m-roas"></div><p>Purchase value ÷ amount spent</p></div>
+    <div class="metric"><h3>Purchase value</h3><div class="v" id="m-pv"></div><p>Sales attributed to ads</p></div>
+  </section>
+
+  <h2>Budget by campaign</h2>
+  <p class="hint">How much of each campaign’s budget has been spent so far, largest budgets first.</p>
+  <ol class="pace" id="pace"></ol>
+
+  <h2>All campaigns</h2>
+  <p class="hint">Results and average cost per result follow each campaign’s own goal (see Result type), so compare them campaign by campaign. Select a column heading to sort.</p>
+  <div class="tools">
+    <input id="q" type="search" placeholder="Search campaigns" aria-label="Search campaigns">
+    <label><input type="checkbox" id="show-paused" checked> Show paused campaigns</label>
+  </div>
+  <div class="scroll">
+    <table id="tbl">
+      <thead><tr id="thead"></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="notes">
+    <p>All figures are lifetime totals from Meta Ads Manager, from each campaign’s start date to the time shown at the top. Reach in the totals counts each account once, so it is lower than the campaigns’ reach added together.</p>
+    <p>Budget is a campaign’s lifetime budget or, where the budget is set on its ad sets, those budgets added together. The total counts campaigns that are active or have spent; paused campaigns that never ran are left out.</p>
+    <p>ROAS and purchase value appear once a campaign records purchases through the Meta Pixel or Conversions API.</p>
+  </div>
+</div>
+
+<script>
+/* ==========================================================================
+   SETTINGS
+   REFRESH_URL: the address of your Cloudflare Worker (see SETUP.md), e.g.
+   "https://gsc-meta.yourname.workers.dev". Leave it empty to hide the
+   Refresh button and show only the data saved below.
+   ========================================================================== */
+const REFRESH_URL = "";
+
+/* ==========================================================================
+   SAVED DATA: shown instantly when the page opens, and kept if a refresh
+   fails. Money is in the account currency. CTR is a percentage (2.91 = 2.91%).
+   ========================================================================== */
+let DATA = {
+ "updated": "2026-10-23T19:55:25+08:00",
+ "updated_label": "23 Oct 2026, 7:55 pm (MYT)",
+ "currency": "MYR",
+ "account": {
+  "impressions": 2436831,
+  "reach": 1523309,
+  "clicks": 14340,
+  "ctr": 0.59,
+  "amount_spent": 4216.44,
+  "purchase_roas": null,
+  "purchase_value": null
+ },
+ "campaigns": [
+  {
+   "name": "Kinofest - German Film Festival",
+   "status": "Active",
+   "objective": "Traffic",
+   "start_time": "2026-10-19T20:58:32+0800",
+   "stop_time": "2026-10-25T23:00:00+0800",
+   "impressions": 302371,
+   "reach": 177442,
+   "clicks": 8814,
+   "ctr": 2.91,
+   "results": 4876,
+   "result_type": "Landing page views",
+   "cost_per_result": 0.31,
+   "amount_spent": 1504.1,
+   "budget": 2428.8,
+   "purchase_roas": null,
+   "purchase_value": null
+  },
+  {
+   "name": "GSC | Play Meal With Kids - Reach",
+   "status": "Active",
+   "objective": "Awareness",
+   "start_time": "2026-10-06T16:26:30+0800",
+   "stop_time": "2026-10-25T23:59:00+0800",
+   "impressions": 1011954,
+   "reach": 610328,
+   "clicks": 2325,
+   "ctr": 0.23,
+   "results": 610328,
+   "result_type": "Reach",
+   "cost_per_result": 2.18,
+   "amount_spent": 1332.0,
+   "budget": 1619.2,
+   "purchase_roas": null,
+   "purchase_value": null
+  },
+  {
+   "name": "IMAX Mid Valley Megamall",
+   "status": "Active",
+   "objective": "Awareness",
+   "start_time": "2026-10-20T17:33:00+0800",
+   "stop_time": "2026-10-28T23:00:00+0800",
+   "impressions": 1104702,
+   "reach": 807694,
+   "clicks": 2097,
+   "ctr": 0.19,
+   "results": 807694,
+   "result_type": "Reach",
+   "cost_per_result": 1.61,
+   "amount_spent": 1304.2,
+   "budget": 4048.0,
+   "purchase_roas": null,
+   "purchase_value": null
+  },
+  {
+   "name": "We Are All Strangers | Movie - v2",
+   "status": "Active",
+   "objective": "Traffic",
+   "start_time": "2026-10-23T12:02:30+0800",
+   "stop_time": "2026-11-23T12:00:32+0800",
+   "impressions": 11477,
+   "reach": 9872,
+   "clicks": 631,
+   "ctr": 5.5,
+   "results": 304,
+   "result_type": "Landing page views",
+   "cost_per_result": 0.15,
+   "amount_spent": 46.7,
+   "budget": 2428.8,
+   "purchase_roas": null,
+   "purchase_value": null
+  },
+  {
+   "name": "Popcorn Run 2026 | Entitlement Reveal",
+   "status": "Active",
+   "objective": "Traffic",
+   "start_time": "2026-10-23T17:52:30+0800",
+   "stop_time": "2026-11-06T23:00:00+0800",
+   "impressions": 5998,
+   "reach": 5200,
+   "clicks": 467,
+   "ctr": 7.79,
+   "results": 114,
+   "result_type": "Landing page views",
+   "cost_per_result": 0.25,
+   "amount_spent": 28.87,
+   "budget": 1619.2,
+   "purchase_roas": null,
+   "purchase_value": null
+  },
+  {
+   "name": "We Are All Strangers | Movie",
+   "status": "Paused",
+   "objective": "Traffic",
+   "start_time": "2026-10-20T17:14:07+0800",
+   "stop_time": "2026-11-02T23:00:00+0800",
+   "impressions": 0,
+   "reach": 0,
+   "clicks": 0,
+   "ctr": null,
+   "results": null,
+   "result_type": "Landing page views",
+   "cost_per_result": null,
+   "amount_spent": 0.0,
+   "budget": 2428.8,
+   "purchase_roas": null,
+   "purchase_value": null
+  }
+ ]
+};
+
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const n0 = new Intl.NumberFormat("en-MY");
+  const compact = new Intl.NumberFormat("en", {notation:"compact", maximumFractionDigits:1});
+  let cc = "MYR";
+  const money = (v, d) => v == null ? "—" : new Intl.NumberFormat("en-MY", {style:"currency", currency:cc, minimumFractionDigits:d, maximumFractionDigits:d}).format(v);
+  const pct1 = (v) => v == null ? "—" : (v * 100).toFixed(1) + "%";
+  const big = (v) => v == null ? "—" : (v >= 10000 ? compact.format(v) : n0.format(v));
+  const dateFmt = (s) => s ? new Date(s).toLocaleDateString("en-GB", {day:"numeric", month:"short", timeZone:"Asia/Kuala_Lumpur"}) : "";
+
+  // ---- Table setup (built once) ----
+  const cols = [
+    {k:"name", label:"Campaign", l:true, f:(v) => v},
+    {k:"status", label:"Status", l:true, f:(v) => v},
+    {k:"objective", label:"Objective", l:true, f:(v) => v},
+    {k:"impressions", label:"Impressions", f:(v) => v == null ? "—" : n0.format(v)},
+    {k:"reach", label:"Reach", f:(v) => v == null ? "—" : n0.format(v)},
+    {k:"clicks", label:"Clicks (all)", f:(v) => v == null ? "—" : n0.format(v)},
+    {k:"ctr", label:"CTR (all)", f:(v) => v == null ? "—" : v.toFixed(2) + "%"},
+    {k:"results", label:"Results", f:(v) => v == null ? "—" : n0.format(v)},
+    {k:"result_type", label:"Result type", l:true, f:(v) => v || "—"},
+    {k:"cost_per_result", label:"Avg CPR", f:(v) => money(v, 2)},
+    {k:"amount_spent", label:"Amount spent", f:(v) => money(v, 2)},
+    {k:"budget", label:"Budget", f:(v) => money(v, 2)},
+    {k:"pct_used", label:"% of budget", f:pct1},
+    {k:"purchase_roas", label:"ROAS", f:(v) => v == null ? "—" : v.toFixed(2) + "×"},
+    {k:"purchase_value", label:"Purchase value", f:(v) => money(v, 2)}
+  ];
+  const sort = {k:"amount_spent", dir:-1};
+  let camps = [];
+  const head = $("thead");
+  cols.forEach((c) => {
+    const th = document.createElement("th");
+    if (c.l) th.className = "l";
+    th.scope = "col";
+    const btn = document.createElement("button"); btn.type = "button"; btn.textContent = c.label;
+    btn.addEventListener("click", () => {
+      if (sort.k === c.k) sort.dir = -sort.dir; else { sort.k = c.k; sort.dir = c.l ? 1 : -1; }
+      draw();
+    });
+    th.append(btn); head.append(th);
+  });
+  $("q").addEventListener("input", draw);
+  $("show-paused").addEventListener("change", draw);
+
+  function draw(){
+    const q = $("q").value.trim().toLowerCase();
+    const showPaused = $("show-paused").checked;
+    [...head.children].forEach((th, i) => th.setAttribute("aria-sort", cols[i].k === sort.k ? (sort.dir > 0 ? "ascending" : "descending") : "none"));
+    let rows = camps.filter((c) => (!q || c.name.toLowerCase().includes(q)) && (showPaused || c.status === "Active"));
+    rows.sort((x, y) => {
+      const a = x[sort.k], b = y[sort.k];
+      if (a == null && b == null) return 0;
+      if (a == null) return 1;
+      if (b == null) return -1;
+      return (typeof a === "number" ? a - b : String(a).localeCompare(String(b))) * sort.dir;
+    });
+    const body = $("tbody"); body.textContent = "";
+    if (!rows.length) {
+      const tr = document.createElement("tr"); const td = document.createElement("td");
+      td.colSpan = cols.length; td.className = "l dim"; td.textContent = "No campaigns match your search.";
+      tr.append(td); body.append(tr); return;
+    }
+    rows.forEach((r) => {
+      const tr = document.createElement("tr");
+      cols.forEach((c) => {
+        const td = document.createElement("td");
+        if (c.l) td.className = "l";
+        td.textContent = c.f(r[c.k]);
+        if (c.k === "name") td.title = r.name;
+        if (c.k === "status") td.classList.add(r.status === "Active" ? "st-active" : "st-other");
+        if (td.textContent === "—") td.classList.add("dim");
+        tr.append(td);
+      });
+      body.append(tr);
+    });
+  }
+
+  // ---- Draw everything from a DATA object ----
+  function render(d){
+    cc = d.currency || "MYR";
+    camps = d.campaigns.map((c) => Object.assign({}, c, {
+      pct_used: c.budget ? c.amount_spent / c.budget : null,
+      counted: c.status === "Active" || c.amount_spent > 0
+    }));
+    const counted = camps.filter((c) => c.counted);
+    const totBudget = counted.reduce((t, c) => t + (c.budget || 0), 0);
+    const totSpent = counted.reduce((t, c) => t + (c.amount_spent || 0), 0);
+    const totPct = totBudget ? totSpent / totBudget : null;
+
+    $("updated").textContent = "Data as of " + d.updated_label;
+    $("spent").textContent = money(totSpent, 0);
+    $("budget").textContent = money(totBudget, 0);
+    $("pct").textContent = pct1(totPct);
+    const sub = $("hero-sub"); sub.textContent = "";
+    const left = document.createElement("b"); left.textContent = money(totBudget - totSpent, 0);
+    sub.append(left, document.createTextNode(" left across " + counted.length + " campaigns"));
+    $("stub-label").setAttribute("aria-label", money(totSpent, 0) + " of " + money(totBudget, 0) + " spent, " + pct1(totPct));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const w = Math.min(100, (totPct || 0) * 100) + "%";
+      $("stub-fill").style.width = w;
+      $("stub-tear").style.left = w;
+    }));
+
+    const a = d.account || {};
+    const setV = (el, text, isNone) => { el.textContent = text; el.classList.toggle("none", !!isNone); };
+    setV($("m-impr"), big(a.impressions));
+    setV($("m-reach"), big(a.reach));
+    setV($("m-clicks"), big(a.clicks));
+    setV($("m-ctr"), a.ctr == null ? "—" : a.ctr.toFixed(2) + "%");
+    setV($("m-roas"), a.purchase_roas == null ? "No purchases yet" : a.purchase_roas.toFixed(2) + "×", a.purchase_roas == null);
+    setV($("m-pv"), a.purchase_value == null ? "No purchases yet" : money(a.purchase_value, 0), a.purchase_value == null);
+
+    const pace = $("pace"); pace.textContent = "";
+    camps.slice().sort((x, y) => (y.budget || 0) - (x.budget || 0) || y.amount_spent - x.amount_spent).forEach((c) => {
+      const li = document.createElement("li");
+      const nm = document.createElement("div"); nm.className = "nm";
+      const s = document.createElement("span"); s.textContent = c.name; s.title = c.name;
+      const sm = document.createElement("small");
+      sm.textContent = c.status === "Active" ? (c.stop_time ? "Ends " + dateFmt(c.stop_time) : "Running") : c.status;
+      nm.append(s, sm);
+      const bar = document.createElement("div"); bar.className = "bar" + (c.status === "Active" ? "" : " paused");
+      const fill = document.createElement("i"); fill.style.width = Math.min(100, (c.pct_used || 0) * 100) + "%";
+      bar.append(fill);
+      bar.setAttribute("role", "img");
+      bar.setAttribute("aria-label", pct1(c.pct_used) + " of budget spent");
+      const num = document.createElement("div"); num.className = "num";
+      const b = document.createElement("b"); b.textContent = c.pct_used == null ? "No budget" : pct1(c.pct_used);
+      num.append(b, document.createTextNode(money(c.amount_spent, 0) + " of " + money(c.budget, 0)));
+      li.append(nm, bar, num);
+      pace.append(li);
+    });
+    draw();
+  }
+
+  // ---- Refresh from the Worker ----
+  const btn = $("refresh"), status = $("status");
+  function setStatus(text, isErr){ status.textContent = text; status.classList.toggle("err", !!isErr); }
+  async function refresh(){
+    btn.disabled = true; btn.textContent = "Refreshing";
+    setStatus("");
+    try {
+      const r = await fetch(REFRESH_URL, {cache:"no-store"});
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.error) throw new Error(j.error || ("the data service answered " + r.status));
+      if (!Array.isArray(j.campaigns)) throw new Error("the data service sent no campaigns");
+      DATA = j; render(DATA);
+    } catch (e) {
+      setStatus("Couldn’t get the latest numbers (" + e.message + "). Showing data as of " + DATA.updated_label + ".", true);
+    } finally {
+      btn.disabled = false; btn.textContent = "Refresh";
+    }
+  }
+
+  render(DATA);
+  if (REFRESH_URL) {
+    btn.hidden = false;
+    btn.addEventListener("click", refresh);
+    refresh();   // also fetch the latest numbers when the page opens
+  }
+})();
+</script>
+</body>
+</html>
