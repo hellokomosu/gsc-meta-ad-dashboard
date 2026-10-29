@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GSC: Meta ads campaign tracker</title>
+<title>GSC: paid media campaign tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap" rel="stylesheet">
@@ -131,12 +131,39 @@
 
   .notes{margin:40px 0 0;padding:18px 0 0;border-top:1px solid var(--rule);color:var(--muted);font-size:13px;max-width:78ch}
   .notes p{margin:0 0 8px}
+
+  /* Platform tabs */
+  .tabs{display:flex;gap:2px;margin-top:22px;border-bottom:1px solid var(--rule);overflow-x:auto;scrollbar-width:none}
+  .tab{font:inherit;background:none;border:0;cursor:pointer;padding:10px 14px 9px;font-size:15px;font-weight:700;color:var(--muted);
+    border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap;font-variation-settings:"wdth" 90}
+  .tab:hover{color:var(--ink)}
+  .tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--red)}
+  .tab small{font-weight:500;font-size:12px;margin-left:6px;color:var(--muted);font-variation-settings:"wdth" 100}
+  .tab small.err{color:var(--red)}
+  .empty{margin:56px 0 24px;padding:28px;border:1px dashed var(--rule);border-radius:8px;background:var(--surface);max-width:60ch}
+  .empty h2{margin:0 0 6px}
+  .empty p{margin:0;color:var(--muted)}
+  .split{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+  .split li{display:grid;grid-template-columns:8rem minmax(0,1fr) 13rem;gap:6px 20px;align-items:center;padding:12px 0;border-bottom:1px solid var(--rule)}
+  .split .pn{font-weight:700}
+  .split .num{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted);white-space:nowrap}
+  .split .num b{color:var(--ink);font-size:16px;font-weight:800;margin-right:6px;font-variation-settings:"wdth" 75}
+  .split .off{color:var(--muted);font-size:13px}
+  .split .off.err{color:var(--red)}
+  @media (max-width:700px){
+    .split li{grid-template-columns:minmax(0,1fr) auto}
+    .split .bar,.split .off{grid-column:1 / -1;grid-row:2}
+  }
+  .tag{display:inline-block;font-size:11.5px;font-weight:600;color:var(--muted);border:1px solid var(--rule);border-radius:4px;padding:0 5px;margin-right:6px;line-height:1.5}
+  table.single .pf{display:none}
+  .pace .nm small .tag{display:inline-block;overflow:visible;white-space:nowrap}
+  .mixed{margin:8px 0 0;font-size:13px;color:var(--red)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="mast">
-    <h1>GSC Meta ads campaign tracker</h1>
+    <h1>GSC paid media tracker</h1>
     <div class="mast-r">
       <p id="updated"></p>
       <button type="button" id="refresh" class="refresh" hidden>Refresh</button>
@@ -144,58 +171,75 @@
   </header>
   <p class="status" id="status" role="status" aria-live="polite"></p>
 
-  <section class="hero" aria-labelledby="hero-title">
-    <h2 id="hero-title" style="position:absolute;left:-9999px">Amount spent against budget</h2>
-    <div class="hero-line">
-      <p class="hero-fig"><span id="spent"></span> <span class="of">of <span id="budget"></span> spent</span></p>
-      <p class="hero-pct"><span id="pct"></span><small>of total budget</small></p>
+  <nav class="tabs" role="tablist" aria-label="Platform" id="tabs"></nav>
+
+  <div id="panel" role="tabpanel">
+    <section class="empty" id="empty" hidden>
+      <h2 id="empty-title"></h2>
+      <p id="empty-text"></p>
+    </section>
+
+    <div id="content">
+      <section class="hero" aria-label="Amount spent against budget">
+        <div class="hero-line">
+          <p class="hero-fig"><span id="spent"></span> <span class="of">of <span id="budget"></span> spent</span></p>
+          <p class="hero-pct"><span id="pct"></span><small>of total budget</small></p>
+        </div>
+        <div class="stub" role="img" id="stub-label">
+          <div class="stub-fill" id="stub-fill"></div>
+          <div class="stub-tear" id="stub-tear"></div>
+        </div>
+        <p class="hero-sub" id="hero-sub"></p>
+        <p class="mixed" id="mixed" hidden></p>
+      </section>
+
+      <section class="strip" aria-label="Totals, all time">
+        <div class="metric"><h3>Impressions</h3><div class="v" id="m-impr"></div><p>Times ads were on screen</p></div>
+        <div class="metric"><h3>Reach</h3><div class="v" id="m-reach"></div><p id="m-reach-note"></p></div>
+        <div class="metric"><h3>Clicks (all)</h3><div class="v" id="m-clicks"></div><p>Clicks, taps and swipes</p></div>
+        <div class="metric"><h3>CTR (all)</h3><div class="v" id="m-ctr"></div><p>Clicks ÷ impressions</p></div>
+        <div class="metric"><h3>ROAS</h3><div class="v" id="m-roas"></div><p id="m-roas-note">Value ÷ amount spent</p></div>
+        <div class="metric"><h3 id="m-pv-label">Purchase value</h3><div class="v" id="m-pv"></div><p id="m-pv-note">Sales attributed to ads</p></div>
+      </section>
+
+      <div id="split-wrap">
+        <h2>Spend by platform</h2>
+        <p class="hint">How much of each platform’s budget has been spent. Select a tab above to see one platform in detail.</p>
+        <ol class="split" id="split"></ol>
+      </div>
+
+      <h2>Budget by campaign</h2>
+      <p class="hint">How much of each campaign’s budget has been spent so far, largest budgets first.</p>
+      <ol class="pace" id="pace"></ol>
+
+      <h2>All campaigns</h2>
+      <p class="hint">Results and average cost per result follow each campaign’s own goal (see Result type), so compare them campaign by campaign. Select a column heading to sort.</p>
+      <div class="tools">
+        <input id="q" type="search" placeholder="Search campaigns" aria-label="Search campaigns">
+        <label><input type="checkbox" id="show-paused" checked> Show paused and ended campaigns</label>
+      </div>
+      <div class="scroll">
+        <table id="tbl">
+          <thead><tr id="thead"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
     </div>
-    <div class="stub" role="img" id="stub-label">
-      <div class="stub-fill" id="stub-fill"></div>
-      <div class="stub-tear" id="stub-tear"></div>
-    </div>
-    <p class="hero-sub" id="hero-sub"></p>
-  </section>
-
-  <section class="strip" aria-label="Account totals, all time">
-    <div class="metric"><h3>Impressions</h3><div class="v" id="m-impr"></div><p>Times ads were on screen</p></div>
-    <div class="metric"><h3>Reach</h3><div class="v" id="m-reach"></div><p>Accounts reached, each counted once</p></div>
-    <div class="metric"><h3>Clicks (all)</h3><div class="v" id="m-clicks"></div><p>Clicks, taps and swipes</p></div>
-    <div class="metric"><h3>CTR (all)</h3><div class="v" id="m-ctr"></div><p>Clicks ÷ impressions</p></div>
-    <div class="metric"><h3>ROAS</h3><div class="v" id="m-roas"></div><p>Purchase value ÷ amount spent</p></div>
-    <div class="metric"><h3>Purchase value</h3><div class="v" id="m-pv"></div><p>Sales attributed to ads</p></div>
-  </section>
-
-  <h2>Budget by campaign</h2>
-  <p class="hint">How much of each campaign’s budget has been spent so far, largest budgets first.</p>
-  <ol class="pace" id="pace"></ol>
-
-  <h2>All campaigns</h2>
-  <p class="hint">Results and average cost per result follow each campaign’s own goal (see Result type), so compare them campaign by campaign. Select a column heading to sort.</p>
-  <div class="tools">
-    <input id="q" type="search" placeholder="Search campaigns" aria-label="Search campaigns">
-    <label><input type="checkbox" id="show-paused" checked> Show paused campaigns</label>
-  </div>
-  <div class="scroll">
-    <table id="tbl">
-      <thead><tr id="thead"></tr></thead>
-      <tbody id="tbody"></tbody>
-    </table>
   </div>
 
   <div class="notes">
-    <p>All figures are lifetime totals from Meta Ads Manager, from each campaign’s start date to the time shown at the top. Reach in the totals counts each account once, so it is lower than the campaigns’ reach added together.</p>
-    <p>Budget is a campaign’s lifetime budget or, where the budget is set on its ad sets, those budgets added together. The total counts campaigns that are active or have spent; paused campaigns that never ran are left out.</p>
-    <p>ROAS and purchase value appear once a campaign records purchases through the Meta Pixel or Conversions API.</p>
+    <p>All figures are lifetime totals, from each campaign’s start date to the time shown at the top. YouTube covers Google Ads Video campaigns only.</p>
+    <p>Budget is a campaign’s total budget or, where the budget is set daily or on its ad sets or ad groups, those budgets added up over the campaign’s schedule. Totals count campaigns that are active or have spent.</p>
+    <p>Reach counts each person once within a platform. Platforms can’t tell when the same person saw ads on more than one platform, so reach in the All view is the platforms’ figures added together. Google Ads doesn’t report reach for these campaigns.</p>
+    <p>ROAS and purchase value appear once campaigns record purchases: through the Meta Pixel or Conversions API, the TikTok Pixel, or Google Ads conversion tracking (shown as conversion value).</p>
   </div>
 </div>
 
 <script>
 /* ==========================================================================
    SETTINGS
-   REFRESH_URL: the address of your Cloudflare Worker (see SETUP.md), e.g.
-   "https://gsc-meta.yourname.workers.dev". Leave it empty to hide the
-   Refresh button and show only the data saved below.
+   REFRESH_URL: the address of your Cloudflare Worker. Leave it empty to hide
+   the Refresh button and show only the saved data below.
    ========================================================================== */
 const REFRESH_URL = "https://gsc-meta-dashboard.hellokomosu.workers.dev";
 
@@ -204,128 +248,54 @@ const REFRESH_URL = "https://gsc-meta-dashboard.hellokomosu.workers.dev";
    fails. Money is in the account currency. CTR is a percentage (2.91 = 2.91%).
    ========================================================================== */
 let DATA = {
- "updated": "2026-10-23T19:55:25+08:00",
- "updated_label": "23 Oct 2026, 7:55 pm (MYT)",
+ "updated": "2026-10-30T03:48:12+08:00",
+ "updated_label": "30 Oct 2026, 3:48 am (MYT)",
  "currency": "MYR",
- "account": {
-  "impressions": 2436831,
-  "reach": 1523309,
-  "clicks": 14340,
-  "ctr": 0.59,
-  "amount_spent": 4216.44,
-  "purchase_roas": null,
-  "purchase_value": null
- },
- "campaigns": [
-  {
-   "name": "Kinofest - German Film Festival",
-   "status": "Active",
-   "objective": "Traffic",
-   "start_time": "2026-10-19T20:58:32+0800",
-   "stop_time": "2026-10-25T23:00:00+0800",
-   "impressions": 302371,
-   "reach": 177442,
-   "clicks": 8814,
-   "ctr": 2.91,
-   "results": 4876,
-   "result_type": "Landing page views",
-   "cost_per_result": 0.31,
-   "amount_spent": 1504.1,
-   "budget": 2428.8,
-   "purchase_roas": null,
-   "purchase_value": null
+ "platforms": {
+  "meta": {
+   "name": "Meta",
+   "configured": true,
+   "ok": true,
+   "currency": "MYR",
+   "account": {
+    "impressions": 206072,
+    "reach": 175223,
+    "clicks": 790,
+    "ctr": 0.38,
+    "amount_spent": 297.06,
+    "purchase_roas": null,
+    "purchase_value": null
+   },
+   "campaigns": [
+    {
+     "name": "Godzilla Minus Zero | BTS Footage",
+     "status": "Active",
+     "objective": "Awareness",
+     "start_time": "2026-10-28T10:00:00+0800",
+     "stop_time": "2026-11-08T23:00:00+0800",
+     "impressions": 206072,
+     "reach": 175223,
+     "clicks": 790,
+     "ctr": 0.38,
+     "results": 175223,
+     "result_type": "Reach",
+     "cost_per_result": 1.7,
+     "amount_spent": 297.06,
+     "budget": 1879.22,
+     "purchase_roas": null,
+     "purchase_value": null
+    }
+   ]
   },
-  {
-   "name": "GSC | Play Meal With Kids - Reach",
-   "status": "Active",
-   "objective": "Awareness",
-   "start_time": "2026-10-06T16:26:30+0800",
-   "stop_time": "2026-10-25T23:59:00+0800",
-   "impressions": 1011954,
-   "reach": 610328,
-   "clicks": 2325,
-   "ctr": 0.23,
-   "results": 610328,
-   "result_type": "Reach",
-   "cost_per_result": 2.18,
-   "amount_spent": 1332.0,
-   "budget": 1619.2,
-   "purchase_roas": null,
-   "purchase_value": null
+  "youtube": {
+   "name": "YouTube",
+   "configured": false
   },
-  {
-   "name": "IMAX Mid Valley Megamall",
-   "status": "Active",
-   "objective": "Awareness",
-   "start_time": "2026-10-20T17:33:00+0800",
-   "stop_time": "2026-10-28T23:00:00+0800",
-   "impressions": 1104702,
-   "reach": 807694,
-   "clicks": 2097,
-   "ctr": 0.19,
-   "results": 807694,
-   "result_type": "Reach",
-   "cost_per_result": 1.61,
-   "amount_spent": 1304.2,
-   "budget": 4048.0,
-   "purchase_roas": null,
-   "purchase_value": null
-  },
-  {
-   "name": "We Are All Strangers | Movie - v2",
-   "status": "Active",
-   "objective": "Traffic",
-   "start_time": "2026-10-23T12:02:30+0800",
-   "stop_time": "2026-11-23T12:00:32+0800",
-   "impressions": 11477,
-   "reach": 9872,
-   "clicks": 631,
-   "ctr": 5.5,
-   "results": 304,
-   "result_type": "Landing page views",
-   "cost_per_result": 0.15,
-   "amount_spent": 46.7,
-   "budget": 2428.8,
-   "purchase_roas": null,
-   "purchase_value": null
-  },
-  {
-   "name": "Popcorn Run 2026 | Entitlement Reveal",
-   "status": "Active",
-   "objective": "Traffic",
-   "start_time": "2026-10-23T17:52:30+0800",
-   "stop_time": "2026-11-06T23:00:00+0800",
-   "impressions": 5998,
-   "reach": 5200,
-   "clicks": 467,
-   "ctr": 7.79,
-   "results": 114,
-   "result_type": "Landing page views",
-   "cost_per_result": 0.25,
-   "amount_spent": 28.87,
-   "budget": 1619.2,
-   "purchase_roas": null,
-   "purchase_value": null
-  },
-  {
-   "name": "We Are All Strangers | Movie",
-   "status": "Paused",
-   "objective": "Traffic",
-   "start_time": "2026-10-20T17:14:07+0800",
-   "stop_time": "2026-11-02T23:00:00+0800",
-   "impressions": 0,
-   "reach": 0,
-   "clicks": 0,
-   "ctr": null,
-   "results": null,
-   "result_type": "Landing page views",
-   "cost_per_result": null,
-   "amount_spent": 0.0,
-   "budget": 2428.8,
-   "purchase_roas": null,
-   "purchase_value": null
+  "tiktok": {
+   "name": "TikTok",
+   "configured": false
   }
- ]
+ }
 };
 
 (function(){
@@ -333,35 +303,87 @@ let DATA = {
   const n0 = new Intl.NumberFormat("en-MY");
   const compact = new Intl.NumberFormat("en", {notation:"compact", maximumFractionDigits:1});
   let cc = "MYR";
-  const money = (v, d) => v == null ? "—" : new Intl.NumberFormat("en-MY", {style:"currency", currency:cc, minimumFractionDigits:d, maximumFractionDigits:d}).format(v);
+  const money = (v, d, cur) => v == null ? "—" : new Intl.NumberFormat("en-MY", {style:"currency", currency:cur || cc, minimumFractionDigits:d, maximumFractionDigits:d}).format(v);
   const pct1 = (v) => v == null ? "—" : (v * 100).toFixed(1) + "%";
   const big = (v) => v == null ? "—" : (v >= 10000 ? compact.format(v) : n0.format(v));
   const dateFmt = (s) => s ? new Date(s).toLocaleDateString("en-GB", {day:"numeric", month:"short", timeZone:"Asia/Kuala_Lumpur"}) : "";
 
+  const TABS = [
+    {k:"all", name:"All platforms"},
+    {k:"meta", name:"Meta"},
+    {k:"youtube", name:"YouTube"},
+    {k:"tiktok", name:"TikTok"}
+  ];
+  let tab = (location.hash || "").replace("#", "");
+  if (!TABS.some((t) => t.k === tab)) tab = "all";
+
+  // An older data service answers without "platforms": treat it as Meta only
+  function normalize(d){
+    if (d.platforms) return d;
+    return Object.assign({}, d, {platforms:{
+      meta:{name:"Meta", configured:true, ok:true, currency:d.currency, account:d.account, campaigns:d.campaigns || []},
+      youtube:{name:"YouTube", configured:false},
+      tiktok:{name:"TikTok", configured:false}
+    }});
+  }
+
+  const withMeta = (c) => Object.assign({}, c, {
+    pct_used: c.budget ? c.amount_spent / c.budget : null,
+    counted: c.status === "Active" || c.amount_spent > 0
+  });
+  const okPlatforms = (d) => Object.entries(d.platforms).filter(([, p]) => p.ok);
+
+  function combine(accounts){
+    const sum = (k) => { const v = accounts.map((a) => a && a[k]).filter((x) => x != null); return v.length ? v.reduce((t, x) => t + x, 0) : null; };
+    const impressions = sum("impressions"), clicks = sum("clicks"), spent = sum("amount_spent"), pv = sum("purchase_value");
+    return {impressions, reach: sum("reach"), clicks,
+      ctr: impressions ? clicks / impressions * 100 : null, amount_spent: spent,
+      purchase_value: pv, purchase_roas: pv && spent ? pv / spent : null};
+  }
+
+  // ---- Tabs ----
+  const tabsEl = $("tabs");
+  function drawTabs(d){
+    tabsEl.textContent = "";
+    TABS.forEach((t) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "tab"; b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", String(t.k === tab));
+      b.setAttribute("aria-controls", "panel");
+      b.textContent = t.name;
+      const p = d.platforms[t.k];
+      if (p && !p.configured) { const s = document.createElement("small"); s.textContent = "Not connected"; b.append(s); }
+      else if (p && !p.ok) { const s = document.createElement("small"); s.className = "err"; s.textContent = "Couldn’t load"; b.append(s); }
+      b.addEventListener("click", () => { tab = t.k; history.replaceState(null, "", "#" + t.k); render(DATA); });
+      tabsEl.append(b);
+    });
+  }
+
   // ---- Table setup (built once) ----
   const cols = [
     {k:"name", label:"Campaign", l:true, f:(v) => v},
+    {k:"platform", label:"Platform", l:true, f:(v) => v, cls:"pf"},
     {k:"status", label:"Status", l:true, f:(v) => v},
-    {k:"objective", label:"Objective", l:true, f:(v) => v},
+    {k:"objective", label:"Objective", l:true, f:(v) => v || "—"},
     {k:"impressions", label:"Impressions", f:(v) => v == null ? "—" : n0.format(v)},
     {k:"reach", label:"Reach", f:(v) => v == null ? "—" : n0.format(v)},
     {k:"clicks", label:"Clicks (all)", f:(v) => v == null ? "—" : n0.format(v)},
     {k:"ctr", label:"CTR (all)", f:(v) => v == null ? "—" : v.toFixed(2) + "%"},
     {k:"results", label:"Results", f:(v) => v == null ? "—" : n0.format(v)},
     {k:"result_type", label:"Result type", l:true, f:(v) => v || "—"},
-    {k:"cost_per_result", label:"Avg CPR", f:(v) => money(v, 2)},
-    {k:"amount_spent", label:"Amount spent", f:(v) => money(v, 2)},
-    {k:"budget", label:"Budget", f:(v) => money(v, 2)},
+    {k:"cost_per_result", label:"Avg CPR", f:(v, r) => money(v, 2, r.currency)},
+    {k:"amount_spent", label:"Amount spent", f:(v, r) => money(v, 2, r.currency)},
+    {k:"budget", label:"Budget", f:(v, r) => money(v, 2, r.currency)},
     {k:"pct_used", label:"% of budget", f:pct1},
     {k:"purchase_roas", label:"ROAS", f:(v) => v == null ? "—" : v.toFixed(2) + "×"},
-    {k:"purchase_value", label:"Purchase value", f:(v) => money(v, 2)}
+    {k:"purchase_value", label:"Purchase value", f:(v, r) => money(v, 2, r.currency)}
   ];
   const sort = {k:"amount_spent", dir:-1};
   let camps = [];
   const head = $("thead");
   cols.forEach((c) => {
     const th = document.createElement("th");
-    if (c.l) th.className = "l";
+    th.className = [c.l ? "l" : "", c.cls || ""].join(" ").trim();
     th.scope = "col";
     const btn = document.createElement("button"); btn.type = "button"; btn.textContent = c.label;
     btn.addEventListener("click", () => {
@@ -376,6 +398,7 @@ let DATA = {
   function draw(){
     const q = $("q").value.trim().toLowerCase();
     const showPaused = $("show-paused").checked;
+    $("tbl").classList.toggle("single", tab !== "all");
     [...head.children].forEach((th, i) => th.setAttribute("aria-sort", cols[i].k === sort.k ? (sort.dir > 0 ? "ascending" : "descending") : "none"));
     let rows = camps.filter((c) => (!q || c.name.toLowerCase().includes(q)) && (showPaused || c.status === "Active"));
     rows.sort((x, y) => {
@@ -388,15 +411,15 @@ let DATA = {
     const body = $("tbody"); body.textContent = "";
     if (!rows.length) {
       const tr = document.createElement("tr"); const td = document.createElement("td");
-      td.colSpan = cols.length; td.className = "l dim"; td.textContent = "No campaigns match your search.";
+      td.colSpan = cols.length; td.className = "l dim"; td.textContent = camps.length ? "No campaigns match your search." : "No campaigns yet.";
       tr.append(td); body.append(tr); return;
     }
     rows.forEach((r) => {
       const tr = document.createElement("tr");
       cols.forEach((c) => {
         const td = document.createElement("td");
-        if (c.l) td.className = "l";
-        td.textContent = c.f(r[c.k]);
+        td.className = [c.l ? "l" : "", c.cls || ""].join(" ").trim();
+        td.textContent = c.f(r[c.k], r);
         if (c.k === "name") td.title = r.name;
         if (c.k === "status") td.classList.add(r.status === "Active" ? "st-active" : "st-other");
         if (td.textContent === "—") td.classList.add("dim");
@@ -406,13 +429,38 @@ let DATA = {
     });
   }
 
-  // ---- Draw everything from a DATA object ----
+  // ---- Draw everything for the selected tab ----
   function render(d){
-    cc = d.currency || "MYR";
-    camps = d.campaigns.map((c) => Object.assign({}, c, {
-      pct_used: c.budget ? c.amount_spent / c.budget : null,
-      counted: c.status === "Active" || c.amount_spent > 0
-    }));
+    drawTabs(d);
+    const P = d.platforms;
+    const p = tab === "all" ? null : P[tab];
+
+    // A platform that isn't connected or failed to load
+    if (p && (!p.configured || !p.ok)) {
+      $("content").hidden = true; $("empty").hidden = false;
+      $("empty-title").textContent = !p.configured ? p.name + " isn’t connected yet" : p.name + " couldn’t be loaded";
+      $("empty-text").textContent = !p.configured
+        ? "Figures will appear here once " + p.name + "’s access keys are added to the data service."
+        : "The platform answered: " + String(p.error).replace(/\.$/, "") + ". The other platforms are unaffected.";
+      return;
+    }
+    const ok = okPlatforms(d);
+    if (!ok.length) {
+      $("content").hidden = true; $("empty").hidden = false;
+      $("empty-title").textContent = "No platform data yet";
+      $("empty-text").textContent = "None of the platforms could be loaded. Try Refresh in a moment.";
+      return;
+    }
+    $("content").hidden = false; $("empty").hidden = true;
+
+    const list = tab === "all" ? ok : [[tab, p]];
+    camps = list.flatMap(([k, pl]) => (pl.campaigns || []).map((c) => withMeta(Object.assign({}, c, {platform: pl.name, pkey: k, currency: pl.currency || "MYR"}))));
+    const currencies = [...new Set(list.map(([, pl]) => pl.currency || "MYR"))];
+    cc = currencies[0];
+    const mixed = currencies.length > 1;
+    $("mixed").hidden = !mixed;
+    if (mixed) $("mixed").textContent = "These platforms report in different currencies (" + currencies.join(", ") + "), so the totals above mix them. Check each platform’s tab for exact figures.";
+
     const counted = camps.filter((c) => c.counted);
     const totBudget = counted.reduce((t, c) => t + (c.budget || 0), 0);
     const totSpent = counted.reduce((t, c) => t + (c.amount_spent || 0), 0);
@@ -424,30 +472,61 @@ let DATA = {
     $("pct").textContent = pct1(totPct);
     const sub = $("hero-sub"); sub.textContent = "";
     const left = document.createElement("b"); left.textContent = money(totBudget - totSpent, 0);
-    sub.append(left, document.createTextNode(" left across " + counted.length + " campaigns"));
+    sub.append(left, document.createTextNode(" left across " + counted.length + " campaign" + (counted.length === 1 ? "" : "s")));
     $("stub-label").setAttribute("aria-label", money(totSpent, 0) + " of " + money(totBudget, 0) + " spent, " + pct1(totPct));
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const w = Math.min(100, (totPct || 0) * 100) + "%";
-      $("stub-fill").style.width = w;
-      $("stub-tear").style.left = w;
-    }));
+    const w = Math.min(100, (totPct || 0) * 100) + "%";
+    requestAnimationFrame(() => requestAnimationFrame(() => { $("stub-fill").style.width = w; $("stub-tear").style.left = w; }));
 
-    const a = d.account || {};
+    // Totals strip
+    const a = tab === "all" ? combine(ok.map(([, pl]) => pl.account)) : (p.account || {});
     const setV = (el, text, isNone) => { el.textContent = text; el.classList.toggle("none", !!isNone); };
     setV($("m-impr"), big(a.impressions));
-    setV($("m-reach"), big(a.reach));
+    setV($("m-reach"), a.reach == null ? "Not reported" : big(a.reach), a.reach == null);
+    $("m-reach-note").textContent = tab === "all" ? "Platforms added together; people may be counted more than once"
+      : tab === "youtube" ? "Google Ads doesn’t report reach for these campaigns" : "People reached, each counted once";
     setV($("m-clicks"), big(a.clicks));
     setV($("m-ctr"), a.ctr == null ? "—" : a.ctr.toFixed(2) + "%");
     setV($("m-roas"), a.purchase_roas == null ? "No purchases yet" : a.purchase_roas.toFixed(2) + "×", a.purchase_roas == null);
     setV($("m-pv"), a.purchase_value == null ? "No purchases yet" : money(a.purchase_value, 0), a.purchase_value == null);
+    $("m-pv-label").textContent = tab === "youtube" ? "Conversion value" : "Purchase value";
+    $("m-pv-note").textContent = tab === "youtube" ? "Value of conversions attributed to ads" : "Sales attributed to ads";
 
+    // Spend by platform (All view only)
+    $("split-wrap").hidden = tab !== "all";
+    if (tab === "all") {
+      const split = $("split"); split.textContent = "";
+      Object.entries(P).forEach(([k, pl]) => {
+        const li = document.createElement("li");
+        const nm = document.createElement("div"); nm.className = "pn"; nm.textContent = pl.name;
+        li.append(nm);
+        if (!pl.configured || !pl.ok) {
+          const off = document.createElement("div"); off.className = "off" + (pl.configured ? " err" : "");
+          off.textContent = pl.configured ? "Couldn’t load" : "Not connected yet";
+          li.append(off);
+        } else {
+          const cs = (pl.campaigns || []).map(withMeta).filter((c) => c.counted);
+          const B = cs.reduce((t, c) => t + (c.budget || 0), 0), S = cs.reduce((t, c) => t + (c.amount_spent || 0), 0);
+          const bar = document.createElement("div"); bar.className = "bar";
+          const fill = document.createElement("i"); fill.style.width = Math.min(100, B ? S / B * 100 : 0) + "%";
+          bar.append(fill); bar.setAttribute("role", "img"); bar.setAttribute("aria-label", pct1(B ? S / B : null) + " of budget spent");
+          const num = document.createElement("div"); num.className = "num";
+          const b = document.createElement("b"); b.textContent = B ? pct1(S / B) : "No budget";
+          num.append(b, document.createTextNode(money(S, 0, pl.currency) + " of " + money(B || null, 0, pl.currency)));
+          li.append(bar, num);
+        }
+        split.append(li);
+      });
+    }
+
+    // Budget by campaign
     const pace = $("pace"); pace.textContent = "";
     camps.slice().sort((x, y) => (y.budget || 0) - (x.budget || 0) || y.amount_spent - x.amount_spent).forEach((c) => {
       const li = document.createElement("li");
       const nm = document.createElement("div"); nm.className = "nm";
       const s = document.createElement("span"); s.textContent = c.name; s.title = c.name;
       const sm = document.createElement("small");
-      sm.textContent = c.status === "Active" ? (c.stop_time ? "Ends " + dateFmt(c.stop_time) : "Running") : c.status;
+      if (tab === "all") { const tg = document.createElement("span"); tg.className = "tag"; tg.textContent = c.platform; sm.append(tg); }
+      sm.append(document.createTextNode(c.status === "Active" ? (c.stop_time ? "Ends " + dateFmt(c.stop_time) : "Running") : c.status));
       nm.append(s, sm);
       const bar = document.createElement("div"); bar.className = "bar" + (c.status === "Active" ? "" : " paused");
       const fill = document.createElement("i"); fill.style.width = Math.min(100, (c.pct_used || 0) * 100) + "%";
@@ -456,7 +535,7 @@ let DATA = {
       bar.setAttribute("aria-label", pct1(c.pct_used) + " of budget spent");
       const num = document.createElement("div"); num.className = "num";
       const b = document.createElement("b"); b.textContent = c.pct_used == null ? "No budget" : pct1(c.pct_used);
-      num.append(b, document.createTextNode(money(c.amount_spent, 0) + " of " + money(c.budget, 0)));
+      num.append(b, document.createTextNode(money(c.amount_spent, 0, c.currency) + " of " + money(c.budget, 0, c.currency)));
       li.append(nm, bar, num);
       pace.append(li);
     });
@@ -473,8 +552,11 @@ let DATA = {
       const r = await fetch(REFRESH_URL, {cache:"no-store"});
       const j = await r.json().catch(() => ({}));
       if (!r.ok || j.error) throw new Error(j.error || ("the data service answered " + r.status));
-      if (!Array.isArray(j.campaigns)) throw new Error("the data service sent no campaigns");
-      DATA = j; render(DATA);
+      const d = normalize(j);
+      if (!d.platforms || !Object.keys(d.platforms).length) throw new Error("the data service sent no platforms");
+      DATA = d; render(DATA);
+      const failed = Object.values(d.platforms).filter((p) => p.configured && !p.ok);
+      if (failed.length) setStatus(failed.map((p) => p.name + " couldn’t be loaded (" + String(p.error).replace(/\.$/, "") + ")").join(". ") + ". The other platforms are up to date.", true);
     } catch (e) {
       setStatus("Couldn’t get the latest numbers (" + e.message + "). Showing data as of " + DATA.updated_label + ".", true);
     } finally {
@@ -482,11 +564,17 @@ let DATA = {
     }
   }
 
+  window.addEventListener("hashchange", () => {
+    const h = location.hash.replace("#", "");
+    if (TABS.some((t) => t.k === h) && h !== tab) { tab = h; render(DATA); }
+  });
+
+  DATA = normalize(DATA);
   render(DATA);
   if (REFRESH_URL) {
     btn.hidden = false;
     btn.addEventListener("click", refresh);
-    refresh();   // also fetch the latest numbers when the page opens
+    refresh();
   }
 })();
 </script>
