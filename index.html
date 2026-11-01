@@ -66,21 +66,15 @@
   }
 
   /* Metric strip */
-  .strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));margin-top:36px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+  .strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:36px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
   .metric{padding:18px 18px 16px;border-left:1px solid var(--rule)}
   .metric:first-child{border-left:0;padding-left:0}
   .metric h3{margin:0;font-size:13px;font-weight:600;color:var(--muted)}
   .metric .v{margin-top:6px;font-size:32px;font-weight:800;line-height:1.05;font-variation-settings:"wdth" 75;font-variant-numeric:tabular-nums}
   .metric .v.none{font-size:18px;font-weight:600;color:var(--muted);font-variation-settings:"wdth" 100;padding-top:8px}
   .metric p{margin:6px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4}
-  @media (max-width:900px){
-    .strip{grid-template-columns:repeat(3,minmax(0,1fr))}
-    .metric:nth-child(3n+1){border-left:0;padding-left:0}
-    .metric:nth-child(n+4){border-top:1px solid var(--rule)}
-  }
-  @media (max-width:520px){
+  @media (max-width:760px){
     .strip{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .metric:nth-child(3n+1){border-left:1px solid var(--rule);padding-left:18px}
     .metric:nth-child(2n+1){border-left:0;padding-left:0}
     .metric:nth-child(n+3){border-top:1px solid var(--rule)}
   }
@@ -158,6 +152,8 @@
   table.single .pf{display:none}
   .pace .nm small .tag{display:inline-block;overflow:visible;white-space:nowrap}
   .mixed{margin:8px 0 0;font-size:13px;color:var(--red)}
+  .scope{margin:12px 0 0;font-size:14px;color:var(--muted)}
+  .scope b{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -169,6 +165,7 @@
       <button type="button" id="refresh" class="refresh" hidden>Refresh</button>
     </div>
   </header>
+  <p class="scope" id="scope" hidden></p>
   <p class="status" id="status" role="status" aria-live="polite"></p>
 
   <nav class="tabs" role="tablist" aria-label="Platform" id="tabs"></nav>
@@ -198,8 +195,6 @@
         <div class="metric"><h3>Reach</h3><div class="v" id="m-reach"></div><p id="m-reach-note"></p></div>
         <div class="metric"><h3>Clicks (all)</h3><div class="v" id="m-clicks"></div><p>Clicks, taps and swipes</p></div>
         <div class="metric"><h3>CTR (all)</h3><div class="v" id="m-ctr"></div><p>Clicks ÷ impressions</p></div>
-        <div class="metric"><h3>ROAS</h3><div class="v" id="m-roas"></div><p id="m-roas-note">Value ÷ amount spent</p></div>
-        <div class="metric"><h3 id="m-pv-label">Purchase value</h3><div class="v" id="m-pv"></div><p id="m-pv-note">Sales attributed to ads</p></div>
       </section>
 
       <div id="split-wrap">
@@ -228,10 +223,10 @@
   </div>
 
   <div class="notes">
+    <p id="scope-note" hidden></p>
     <p>All figures are lifetime totals, from each campaign’s start date to the time shown at the top. YouTube covers Google Ads Video campaigns only.</p>
     <p>Budget is a campaign’s total budget or, where the budget is set daily or on its ad sets or ad groups, those budgets added up over the campaign’s schedule. Totals count campaigns that are active or have spent.</p>
     <p>Reach counts each person once within a platform. Platforms can’t tell when the same person saw ads on more than one platform, so reach in the All view is the platforms’ figures added together. Google Ads doesn’t report reach for these campaigns.</p>
-    <p>ROAS and purchase value appear once campaigns record purchases: through the Meta Pixel or Conversions API, the TikTok Pixel, or Google Ads conversion tracking (shown as conversion value).</p>
   </div>
 </div>
 
@@ -243,14 +238,25 @@
    ========================================================================== */
 const REFRESH_URL = "https://gsc-meta-dashboard.hellokomosu.workers.dev";
 
+/* CAMPAIGN_FILTER: only campaigns whose name contains this word are shown, and
+   all totals are worked out from those campaigns. Not case-sensitive.
+   Leave it empty ("") to show every campaign. */
+const CAMPAIGN_FILTER = "Takluk";
+
+/* AWAITING_APPROVAL: platforms whose API access is still being reviewed by the
+   platform itself. They show a "waiting for approval" message instead of
+   "Not connected". Once connected, the message disappears by itself. */
+const AWAITING_APPROVAL = ["tiktok"];
+
 /* ==========================================================================
    SAVED DATA: shown instantly when the page opens, and kept if a refresh
    fails. Money is in the account currency. CTR is a percentage (2.91 = 2.91%).
    ========================================================================== */
 let DATA = {
- "updated": "2026-10-30T03:48:12+08:00",
- "updated_label": "30 Oct 2026, 3:48 am (MYT)",
+ "updated": "2026-11-01T23:53:44+08:00",
+ "updated_label": "1 Nov 2026, 11:53 pm (MYT)",
  "currency": "MYR",
+ "filter": "Takluk",
  "platforms": {
   "meta": {
    "name": "Meta",
@@ -258,30 +264,30 @@ let DATA = {
    "ok": true,
    "currency": "MYR",
    "account": {
-    "impressions": 206072,
-    "reach": 175223,
-    "clicks": 790,
-    "ctr": 0.38,
-    "amount_spent": 297.06,
+    "impressions": 0,
+    "reach": 0,
+    "clicks": 0,
+    "ctr": null,
+    "amount_spent": 0,
     "purchase_roas": null,
     "purchase_value": null
    },
    "campaigns": [
     {
-     "name": "Godzilla Minus Zero | BTS Footage",
+     "name": "Takluk 2 | Official Trailer",
      "status": "Active",
      "objective": "Awareness",
-     "start_time": "2026-10-28T10:00:00+0800",
-     "stop_time": "2026-11-08T23:00:00+0800",
-     "impressions": 206072,
-     "reach": 175223,
-     "clicks": 790,
-     "ctr": 0.38,
-     "results": 175223,
+     "start_time": "2026-11-02T10:00:00+0800",
+     "stop_time": "2026-11-11T23:00:00+0800",
+     "impressions": 0,
+     "reach": 0,
+     "clicks": 0,
+     "ctr": null,
+     "results": null,
      "result_type": "Reach",
-     "cost_per_result": 1.7,
-     "amount_spent": 297.06,
-     "budget": 1879.22,
+     "cost_per_result": null,
+     "amount_spent": 0,
+     "budget": 3400,
      "purchase_roas": null,
      "purchase_value": null
     }
@@ -317,14 +323,33 @@ let DATA = {
   let tab = (location.hash || "").replace("#", "");
   if (!TABS.some((t) => t.k === tab)) tab = "all";
 
+  // Keep only campaigns matching CAMPAIGN_FILTER, and work totals out from them
+  const matches = (c) => !CAMPAIGN_FILTER || String(c.name || "").toLowerCase().includes(CAMPAIGN_FILTER.toLowerCase());
+  function totalsFrom(cs){
+    const s = (k) => { const v = cs.map((c) => c[k]).filter((x) => x != null); return v.length ? v.reduce((t, x) => t + x, 0) : null; };
+    const im = s("impressions"), cl = s("clicks"), sp = s("amount_spent"), pv = s("purchase_value");
+    return {impressions: im, reach: s("reach"), clicks: cl, ctr: im ? cl / im * 100 : null,
+      amount_spent: sp, purchase_value: pv, purchase_roas: pv && sp ? pv / sp : null};
+  }
+  function applyFilter(d){
+    if (!CAMPAIGN_FILTER) return d;
+    const platforms = {};
+    Object.entries(d.platforms).forEach(([k, p]) => {
+      if (!p.ok) { platforms[k] = p; return; }
+      const campaigns = (p.campaigns || []).filter(matches);
+      platforms[k] = Object.assign({}, p, {campaigns, account: totalsFrom(campaigns)});
+    });
+    return Object.assign({}, d, {platforms});
+  }
+
   // An older data service answers without "platforms": treat it as Meta only
   function normalize(d){
-    if (d.platforms) return d;
-    return Object.assign({}, d, {platforms:{
+    if (d.platforms) return applyFilter(d);
+    return applyFilter(Object.assign({}, d, {platforms:{
       meta:{name:"Meta", configured:true, ok:true, currency:d.currency, account:d.account, campaigns:d.campaigns || []},
       youtube:{name:"YouTube", configured:false},
       tiktok:{name:"TikTok", configured:false}
-    }});
+    }}));
   }
 
   const withMeta = (c) => Object.assign({}, c, {
@@ -341,6 +366,8 @@ let DATA = {
       purchase_value: pv, purchase_roas: pv && spent ? pv / spent : null};
   }
 
+  const awaiting = (k, pl) => pl && !pl.configured && AWAITING_APPROVAL.includes(k);
+
   // ---- Tabs ----
   const tabsEl = $("tabs");
   function drawTabs(d){
@@ -352,7 +379,7 @@ let DATA = {
       b.setAttribute("aria-controls", "panel");
       b.textContent = t.name;
       const p = d.platforms[t.k];
-      if (p && !p.configured) { const s = document.createElement("small"); s.textContent = "Not connected"; b.append(s); }
+      if (p && !p.configured) { const s = document.createElement("small"); s.textContent = awaiting(t.k, p) ? "Awaiting " + p.name + " approval" : "Not connected"; b.append(s); }
       else if (p && !p.ok) { const s = document.createElement("small"); s.className = "err"; s.textContent = "Couldn’t load"; b.append(s); }
       b.addEventListener("click", () => { tab = t.k; history.replaceState(null, "", "#" + t.k); render(DATA); });
       tabsEl.append(b);
@@ -374,9 +401,7 @@ let DATA = {
     {k:"cost_per_result", label:"Avg CPR", f:(v, r) => money(v, 2, r.currency)},
     {k:"amount_spent", label:"Amount spent", f:(v, r) => money(v, 2, r.currency)},
     {k:"budget", label:"Budget", f:(v, r) => money(v, 2, r.currency)},
-    {k:"pct_used", label:"% of budget", f:pct1},
-    {k:"purchase_roas", label:"ROAS", f:(v) => v == null ? "—" : v.toFixed(2) + "×"},
-    {k:"purchase_value", label:"Purchase value", f:(v, r) => money(v, 2, r.currency)}
+    {k:"pct_used", label:"% of budget", f:pct1}
   ];
   const sort = {k:"amount_spent", dir:-1};
   let camps = [];
@@ -432,16 +457,22 @@ let DATA = {
   // ---- Draw everything for the selected tab ----
   function render(d){
     drawTabs(d);
+    $("updated").textContent = "Data as of " + d.updated_label;
     const P = d.platforms;
     const p = tab === "all" ? null : P[tab];
 
     // A platform that isn't connected or failed to load
     if (p && (!p.configured || !p.ok)) {
       $("content").hidden = true; $("empty").hidden = false;
-      $("empty-title").textContent = !p.configured ? p.name + " isn’t connected yet" : p.name + " couldn’t be loaded";
-      $("empty-text").textContent = !p.configured
-        ? "Figures will appear here once " + p.name + "’s access keys are added to the data service."
-        : "The platform answered: " + String(p.error).replace(/\.$/, "") + ". The other platforms are unaffected.";
+      if (awaiting(tab, p)) {
+        $("empty-title").textContent = "Waiting for " + p.name + " to approve access";
+        $("empty-text").textContent = "Everything on our side is set up. " + p.name + " is still reviewing our request to read campaign data through its official reporting API, which is a standard step " + p.name + " requires. As soon as " + p.name + " approves it, " + p.name + " figures will appear here automatically.";
+      } else {
+        $("empty-title").textContent = !p.configured ? p.name + " isn’t connected yet" : p.name + " couldn’t be loaded";
+        $("empty-text").textContent = !p.configured
+          ? "Figures will appear here once " + p.name + "’s access keys are added to the data service."
+          : "The platform answered: " + String(p.error).replace(/\.$/, "") + ". The other platforms are unaffected.";
+      }
       return;
     }
     const ok = okPlatforms(d);
@@ -451,10 +482,18 @@ let DATA = {
       $("empty-text").textContent = "None of the platforms could be loaded. Try Refresh in a moment.";
       return;
     }
-    $("content").hidden = false; $("empty").hidden = true;
-
     const list = tab === "all" ? ok : [[tab, p]];
     camps = list.flatMap(([k, pl]) => (pl.campaigns || []).map((c) => withMeta(Object.assign({}, c, {platform: pl.name, pkey: k, currency: pl.currency || "MYR"}))));
+    if (!camps.length) {
+      $("content").hidden = true; $("empty").hidden = false;
+      const where = tab === "all" ? "" : " on " + p.name;
+      $("empty-title").textContent = CAMPAIGN_FILTER ? "No “" + CAMPAIGN_FILTER + "” campaigns" + where + " yet" : "No campaigns" + where + " yet";
+      $("empty-text").textContent = CAMPAIGN_FILTER
+        ? "Campaigns with “" + CAMPAIGN_FILTER + "” in their name will appear here as soon as they’re created."
+        : "Campaigns will appear here as soon as they’re created.";
+      return;
+    }
+    $("content").hidden = false; $("empty").hidden = true;
     const currencies = [...new Set(list.map(([, pl]) => pl.currency || "MYR"))];
     cc = currencies[0];
     const mixed = currencies.length > 1;
@@ -466,7 +505,6 @@ let DATA = {
     const totSpent = counted.reduce((t, c) => t + (c.amount_spent || 0), 0);
     const totPct = totBudget ? totSpent / totBudget : null;
 
-    $("updated").textContent = "Data as of " + d.updated_label;
     $("spent").textContent = money(totSpent, 0);
     $("budget").textContent = money(totBudget, 0);
     $("pct").textContent = pct1(totPct);
@@ -482,14 +520,11 @@ let DATA = {
     const setV = (el, text, isNone) => { el.textContent = text; el.classList.toggle("none", !!isNone); };
     setV($("m-impr"), big(a.impressions));
     setV($("m-reach"), a.reach == null ? "Not reported" : big(a.reach), a.reach == null);
-    $("m-reach-note").textContent = tab === "all" ? "Platforms added together; people may be counted more than once"
-      : tab === "youtube" ? "Google Ads doesn’t report reach for these campaigns" : "People reached, each counted once";
+    $("m-reach-note").textContent = tab === "youtube" ? "Google Ads doesn’t report reach for these campaigns"
+      : CAMPAIGN_FILTER ? "Campaigns added together; people may be counted more than once"
+      : tab === "all" ? "Platforms added together; people may be counted more than once" : "People reached, each counted once";
     setV($("m-clicks"), big(a.clicks));
     setV($("m-ctr"), a.ctr == null ? "—" : a.ctr.toFixed(2) + "%");
-    setV($("m-roas"), a.purchase_roas == null ? "No purchases yet" : a.purchase_roas.toFixed(2) + "×", a.purchase_roas == null);
-    setV($("m-pv"), a.purchase_value == null ? "No purchases yet" : money(a.purchase_value, 0), a.purchase_value == null);
-    $("m-pv-label").textContent = tab === "youtube" ? "Conversion value" : "Purchase value";
-    $("m-pv-note").textContent = tab === "youtube" ? "Value of conversions attributed to ads" : "Sales attributed to ads";
 
     // Spend by platform (All view only)
     $("split-wrap").hidden = tab !== "all";
@@ -499,9 +534,10 @@ let DATA = {
         const li = document.createElement("li");
         const nm = document.createElement("div"); nm.className = "pn"; nm.textContent = pl.name;
         li.append(nm);
-        if (!pl.configured || !pl.ok) {
-          const off = document.createElement("div"); off.className = "off" + (pl.configured ? " err" : "");
-          off.textContent = pl.configured ? "Couldn’t load" : "Not connected yet";
+        if (!pl.configured || !pl.ok || !(pl.campaigns || []).length) {
+          const off = document.createElement("div"); off.className = "off" + (pl.configured && !pl.ok ? " err" : "");
+          off.textContent = !pl.configured ? (awaiting(k, pl) ? "Awaiting " + pl.name + " approval" : "Not connected yet") : !pl.ok ? "Couldn’t load"
+            : (CAMPAIGN_FILTER ? "No “" + CAMPAIGN_FILTER + "” campaigns yet" : "No campaigns yet");
           li.append(off);
         } else {
           const cs = (pl.campaigns || []).map(withMeta).filter((c) => c.counted);
@@ -568,6 +604,15 @@ let DATA = {
     const h = location.hash.replace("#", "");
     if (TABS.some((t) => t.k === h) && h !== tab) { tab = h; render(DATA); }
   });
+
+  if (CAMPAIGN_FILTER) {
+    const sc = $("scope"); sc.hidden = false; sc.textContent = "Showing campaigns with ";
+    const b = document.createElement("b"); b.textContent = "“" + CAMPAIGN_FILTER + "”";
+    sc.append(b, document.createTextNode(" in their name"));
+    const sn = $("scope-note"); sn.hidden = false;
+    sn.textContent = "Only campaigns with “" + CAMPAIGN_FILTER + "” in their name are included, and every total on this page covers those campaigns only.";
+    document.title = "GSC: " + CAMPAIGN_FILTER + " campaign tracker";
+  }
 
   DATA = normalize(DATA);
   render(DATA);
