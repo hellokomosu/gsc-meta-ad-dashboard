@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GSC: paid media campaign tracker</title>
+<title>Takluk 2 - Paid Media Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap" rel="stylesheet">
@@ -159,7 +159,7 @@
 <body>
 <div class="wrap">
   <header class="mast">
-    <h1>GSC paid media tracker</h1>
+    <h1>Takluk 2 - Paid Media Tracker</h1>
     <div class="mast-r">
       <p id="updated"></p>
       <button type="button" id="refresh" class="refresh" hidden>Refresh</button>
@@ -606,12 +606,8 @@ let DATA = {
   });
 
   if (CAMPAIGN_FILTER) {
-    const sc = $("scope"); sc.hidden = false; sc.textContent = "Showing campaigns with ";
-    const b = document.createElement("b"); b.textContent = "“" + CAMPAIGN_FILTER + "”";
-    sc.append(b, document.createTextNode(" in their name"));
     const sn = $("scope-note"); sn.hidden = false;
     sn.textContent = "Only campaigns with “" + CAMPAIGN_FILTER + "” in their name are included, and every total on this page covers those campaigns only.";
-    document.title = "GSC: " + CAMPAIGN_FILTER + " campaign tracker";
   }
 
   DATA = normalize(DATA);
